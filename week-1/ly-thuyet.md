@@ -282,16 +282,58 @@ Trong hầu hết DBMS quan hệ, primary key và unique constraint được h�
 
 #### Các loại index thường gặp
 
-##### Single-column index
+Index có thể được phân loại theo cách tổ chức dữ liệu, số lượng cột, ràng buộc và mục đích sử dụng. Các nhóm này không loại trừ nhau; một index có thể đồng thời thuộc nhiều nhóm.
 
-Index được tạo trên một cột:
+##### 1. Phân loại theo cách tổ chức dữ liệu
+
+###### Clustered Index (chỉ mục cụm)
+
+Clustered index quyết định cách các dòng dữ liệu của bảng được tổ chức theo khóa index. Phần lá của index chứa dữ liệu của dòng, nên truy vấn theo clustered index có thể đi trực tiếp tới dữ liệu.
+
+Một bảng chỉ có thể có **một clustered index** vì dữ liệu chỉ có thể được tổ chức theo một thứ tự chính.
+
+Với MySQL InnoDB:
+
+- `PRIMARY KEY` được dùng làm clustered index.
+- Nếu không có primary key, InnoDB chọn unique index đầu tiên có tất cả cột `NOT NULL`.
+- Nếu không có index phù hợp, InnoDB tự tạo một clustered index ẩn.
+
+Trong project, cột `id` là primary key nên cũng là clustered index:
+
+```sql
+CREATE TABLE events (
+    id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(200) NOT NULL
+) ENGINE = InnoDB;
+```
+
+###### Non-Clustered/Secondary Index (chỉ mục không cụm)
+
+Non-clustered index là cấu trúc tách biệt với dữ liệu chính của bảng. Một bảng có thể có nhiều non-clustered index để hỗ trợ các cách tìm kiếm khác nhau.
+
+Trong MySQL InnoDB, loại này thường được gọi là **secondary index**. Mỗi entry của secondary index chứa khóa index và primary key của dòng. Khi cần lấy thêm dữ liệu, InnoDB dùng primary key để tìm dòng trong clustered index.
+
+```sql
+CREATE INDEX idx_bookings_user_id
+ON bookings(user_id);
+```
+
+Index trên là secondary/non-clustered index trong InnoDB.
+
+##### 2. Phân loại theo số lượng cột
+
+###### Single-column Index
+
+Single-column index được tạo trên một cột:
 
 ```sql
 CREATE INDEX idx_events_start_at
 ON events(start_at);
 ```
 
-##### Composite index
+Nó phù hợp với các truy vấn thường xuyên tìm kiếm hoặc sắp xếp theo `start_at`.
+
+###### Composite Index
 
 Composite index được tạo trên nhiều cột:
 
@@ -300,7 +342,7 @@ CREATE INDEX idx_events_status_start_at
 ON events(status, start_at);
 ```
 
-Thứ tự các cột trong composite index rất quan trọng. Với index `(status, start_at)`, database thường có thể sử dụng hiệu quả cho:
+Thứ tự cột rất quan trọng. Index trên thường hỗ trợ tốt:
 
 ```sql
 WHERE status = 'PUBLISHED'
@@ -313,18 +355,50 @@ WHERE status = 'PUBLISHED'
   AND start_at >= '2026-10-01'
 ```
 
-Nhưng index này thường không tối ưu cho điều kiện chỉ có `start_at`. Đây là nguyên tắc **leftmost prefix** của các index dạng B-Tree/B+Tree.
+Nhưng thường không tối ưu cho điều kiện chỉ có `start_at`. Đây là nguyên tắc **leftmost prefix** của index dạng B-Tree/B+Tree.
 
-##### Unique index
+##### 3. Phân loại theo ràng buộc
 
-Unique index vừa hỗ trợ tìm kiếm, vừa không cho phép các giá trị bị trùng:
+###### Unique Index
+
+Unique index vừa hỗ trợ tìm kiếm, vừa không cho phép các giá trị khóa bị trùng:
 
 ```sql
 CREATE UNIQUE INDEX idx_users_email
 ON users(email);
 ```
 
-Ngoài ra còn có các loại index khác như hash index, full-text index hoặc spatial index. Khả năng hỗ trợ và cách hoạt động phụ thuộc vào từng DBMS.
+Primary key cũng bảo đảm tính duy nhất, nhưng một bảng có thể có nhiều unique index và chỉ có một primary key.
+
+##### 4. Index chuyên biệt
+
+###### Full-text Index
+
+Full-text index được thiết kế để tìm kiếm từ hoặc cụm từ trong nội dung văn bản. Nó phù hợp hơn phép `LIKE '%keyword%'` khi cần tìm kiếm trên lượng văn bản lớn.
+
+Ví dụ với MySQL:
+
+```sql
+CREATE FULLTEXT INDEX idx_events_description
+ON events(description);
+```
+
+Truy vấn:
+
+```sql
+SELECT id, name, description
+FROM events
+WHERE MATCH(description) AGAINST('backend');
+```
+
+Cú pháp, cách xếp hạng kết quả và khả năng hỗ trợ full-text index phụ thuộc vào từng DBMS và storage engine.
+
+Ví dụ, primary key `id` trong MySQL InnoDB có thể đồng thời là:
+
+- Clustered index theo cách tổ chức dữ liệu.
+- Single-column index theo số lượng cột.
+- Unique index theo ràng buộc.
+
 
 #### Khi nào nên đánh index?
 
