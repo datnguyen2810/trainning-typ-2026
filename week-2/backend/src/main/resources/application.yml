@@ -1,0 +1,18 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  profiles:
+    default: demo
+  application:
+    name: backend-typ-api
+
+#  jpa:
+#    open-in-view: false
+#    hibernate:
+#      ddl-auto: validate
+#    show-sql: true
+
+#  docker:
+#    compose:
+#      lifecycle-management: start-only
