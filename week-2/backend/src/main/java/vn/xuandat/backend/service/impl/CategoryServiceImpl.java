@@ -29,6 +29,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryMapper categoryMapper;
 
     @Override
+    @Transactional
     public CategoryResponse createCategory(CreateCategoryRequest request) {
         String normalizedSlug = request.getSlug().toLowerCase(Locale.ROOT);
 
