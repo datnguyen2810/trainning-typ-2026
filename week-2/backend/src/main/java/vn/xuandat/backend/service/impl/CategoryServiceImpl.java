@@ -85,6 +85,7 @@ public class CategoryServiceImpl implements CategoryService {
         int start = (page - 1) * size;
         int end = Math.min(start + size, categories.size());
         int totalElements = categories.size();
+        int totalPages = (int)Math.ceil(1.0 * totalElements / size);
 
         if(start >= categories.size()) {
             return PageResponse.<CategoryResponse>builder()
@@ -92,15 +93,13 @@ public class CategoryServiceImpl implements CategoryService {
                     .page(page)
                     .size(size)
                     .totalElements(totalElements)
-                    .totalPages(0)
+                    .totalPages(totalPages)
                     .build();
         }
 
         for(int i = start; i < end; i++) {
             result.add(categoryMapper.toResponse(categories.get(i)));
         }
-
-        int totalPages = (int)Math.ceil(1.0 * totalElements / size);
 
         return PageResponse.<CategoryResponse>builder()
                 .data(result)
