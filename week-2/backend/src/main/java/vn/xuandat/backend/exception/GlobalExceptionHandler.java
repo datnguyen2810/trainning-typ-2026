@@ -7,6 +7,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import vn.xuandat.backend.dto.response.ErrorResponse;
 
 import java.time.Instant;
@@ -87,6 +88,32 @@ public class GlobalExceptionHandler {
                 errorCode.getDefaultMessage(),
                 request,
                 null
+        );
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ResponseEntity<ErrorResponse> handleParameterValidation(HandlerMethodValidationException exception, HttpServletRequest request) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+
+        exception.getParameterValidationResults().forEach(result -> {
+            String parameterName =
+                    result.getMethodParameter().getParameterName();
+
+            result.getResolvableErrors().forEach(error ->
+                    fieldErrors.putIfAbsent(
+                            parameterName,
+                            error.getDefaultMessage()
+                    )
+            );
+        });
+
+        ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
+
+        return buildResponse(
+                errorCode,
+                errorCode.getDefaultMessage(),
+                request,
+                fieldErrors
         );
     }
 

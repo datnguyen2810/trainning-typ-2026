@@ -1,7 +1,9 @@
+name: training-typ
+
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: backend-typ-postgres
+#    container_name: backend-typ-postgres
     environment:
       POSTGRES_DB: backend-typ
       POSTGRES_USER: backend-typ

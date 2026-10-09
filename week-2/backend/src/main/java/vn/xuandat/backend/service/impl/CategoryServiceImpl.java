@@ -1,7 +1,9 @@
 package vn.xuandat.backend.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.xuandat.backend.dto.request.CreateCategoryRequest;
 import vn.xuandat.backend.dto.request.UpdateCategoryRequest;
 import vn.xuandat.backend.dto.response.CategoryResponse;
@@ -11,9 +13,10 @@ import vn.xuandat.backend.exception.ConflictException;
 import vn.xuandat.backend.exception.ErrorCode;
 import vn.xuandat.backend.exception.ResourceNotFoundException;
 import vn.xuandat.backend.mapper.CategoryMapper;
+import vn.xuandat.backend.repository.CategoryRepository;
 import vn.xuandat.backend.service.CategoryService;
 
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -22,84 +25,98 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
-    private final List<Category> categories = new ArrayList<>();
+    private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
 
     @Override
     public CategoryResponse createCategory(CreateCategoryRequest request) {
-        String normalizedSlug = request.getSlug().trim().toLowerCase(Locale.ROOT);
-        checkSlugAvailable(normalizedSlug, null);
+        String normalizedSlug = request.getSlug().toLowerCase(Locale.ROOT);
+
+        if(categoryRepository.existsBySlug(normalizedSlug)) {
+            throw new ConflictException(
+                    ErrorCode.CATEGORY_SLUG_ALREADY_EXISTS,
+                    "Category slug already exists with by slug : " +  normalizedSlug
+            );
+        }
 
         Category category = Category.builder()
                 .name(request.getName().trim())
                 .slug(normalizedSlug)
                 .description(normalizeDescription(request.getDescription()))
                 .build();
-        
-        category.initializeInMemory();
-        categories.add(category);
-        return categoryMapper.toResponse(category);
+
+        try {
+            // Flush ngay để bắt lỗi unique trong try/catch,
+            // thay vì để lỗi xuất hiện khi transaction commit.
+            categoryRepository.saveAndFlush(category);
+            return categoryMapper.toResponse(category);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException(
+                    ErrorCode.CATEGORY_SLUG_ALREADY_EXISTS,
+                    "Category slug already exists: " + normalizedSlug,
+                    exception
+            );
+        }
     }
 
     @Override
+    @Transactional
     public CategoryResponse updateCategory(UUID id, UpdateCategoryRequest request) {
-        for(int i = 0; i < categories.size(); i++) {
-            Category category = categories.get(i);
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.CATEGORY_NOT_FOUND,
+                        "Category not found with id : " + id
+                ));
 
-            if(category.getId().equals(id)) {
-                String slug = request.getSlug().trim().toLowerCase(Locale.ROOT);
-                checkSlugAvailable(slug, id);
-
-                category.setName(request.getName().trim());
-                category.setDescription(normalizeDescription(request.getDescription()));
-                category.setSlug(slug);
-                category.setActive(request.getActive());
-                category.markUpdatedInMemory();
-                categories.set(i, category);
-
-                return categoryMapper.toResponse(category);
-            }
+        String normalizedSlug = request.getSlug().trim().toLowerCase(Locale.ROOT);
+        if (categoryRepository.existsBySlugAndIdNot(normalizedSlug, id)) {
+            throw new ConflictException(
+                    ErrorCode.CATEGORY_SLUG_ALREADY_EXISTS,
+                    "Category slug already exists with by slug : " +  normalizedSlug
+            );
         }
 
-        throw new ResourceNotFoundException(ErrorCode.CATEGORY_NOT_FOUND,
-                "Category not found with id: " + id);
+        category.update(request.getName().trim(), normalizedSlug, normalizeDescription(request.getDescription()));
+
+        if (Boolean.TRUE.equals(request.getActive())) {
+            category.setActive(true);
+        }
+        else {
+            category.setActive(false);
+        }
+
+        try {
+            categoryRepository.saveAndFlush(category);
+            return categoryMapper.toResponse(category);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException(
+                    ErrorCode.CATEGORY_SLUG_ALREADY_EXISTS,
+                    "Category slug already exists with by slug : " +  normalizedSlug,
+                    exception
+            );
+        }
     }
 
     @Override
+    @Transactional
     public void deleteCategory(UUID id) {
-        for (Category category : categories) {
-            if(category.getId().equals(id)) {
-                categories.remove(category);
-                return;
-            }
-        }
-
-        throw new ResourceNotFoundException(ErrorCode.CATEGORY_NOT_FOUND,
-                "Category not found with id: " + id);
+        categoryRepository.deactiveById(id, Instant.now());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResponse<CategoryResponse> getCategories(int page, int size) {
-        List<CategoryResponse> result = new ArrayList<>();
 
-        int start = (page - 1) * size;
-        int end = Math.min(start + size, categories.size());
-        int totalElements = categories.size();
-        int totalPages = (int)Math.ceil(1.0 * totalElements / size);
+        long offset = (page - 1L) * size;
 
-        if(start >= categories.size()) {
-            return PageResponse.<CategoryResponse>builder()
-                    .data(result)
-                    .page(page)
-                    .size(size)
-                    .totalElements(totalElements)
-                    .totalPages(totalPages)
-                    .build();
-        }
+        List<Category> catgories = categoryRepository.getCategories(offset, size);
+        List<CategoryResponse> result =
+                catgories.stream()
+                        .map(categoryMapper::toResponse)
+                        .toList();
 
-        for(int i = start; i < end; i++) {
-            result.add(categoryMapper.toResponse(categories.get(i)));
-        }
+        long totalElements = categoryRepository.countByActiveTrue();
+        int totalPages = (int) Math.ceil(totalElements / (double) size);
 
         return PageResponse.<CategoryResponse>builder()
                 .data(result)
@@ -111,24 +128,15 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(UUID id) {
-        for (Category category : categories) {
-            if (category.getId().equals(id)) {
-                return categoryMapper.toResponse(category);
-            }
-        }
-        throw new ResourceNotFoundException(ErrorCode.CATEGORY_NOT_FOUND,
-                "Category not found with id: " + id);
-    }
+        Category category = categoryRepository.findByIdAndActiveTrue(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        ErrorCode.CATEGORY_NOT_FOUND,
+                        "Active category not found with id : " + id
+                ));
 
-    private void checkSlugAvailable(String slug, UUID id) {
-        for (Category category : categories) {
-            if (category.getSlug().equals(slug) && !category.getId().equals(id)) {
-                throw new ConflictException(ErrorCode.CATEGORY_SLUG_ALREADY_EXISTS,
-                        "Category slug already exists: " + slug);
-            }
-        }
-
+        return categoryMapper.toResponse(category);
     }
 
     private String normalizeDescription(String description) {
