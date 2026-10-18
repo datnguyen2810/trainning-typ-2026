@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-only
+
+  flyway:
+    enabled: true
