@@ -4,12 +4,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import vn.xuandat.backend.dto.response.ErrorResponse;
 
+import org.springframework.security.access.AccessDeniedException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -91,29 +92,42 @@ public class GlobalExceptionHandler {
         );
     }
 
-    @ExceptionHandler(HandlerMethodValidationException.class)
-    ResponseEntity<ErrorResponse> handleParameterValidation(HandlerMethodValidationException exception, HttpServletRequest request) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-
-        exception.getParameterValidationResults().forEach(result -> {
-            String parameterName =
-                    result.getMethodParameter().getParameterName();
-
-            result.getResolvableErrors().forEach(error ->
-                    fieldErrors.putIfAbsent(
-                            parameterName,
-                            error.getDefaultMessage()
-                    )
-            );
-        });
-
-        ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
-
+    @ExceptionHandler(BadCredentialsException.class)
+    ResponseEntity<ErrorResponse> handleBadCredentials(
+            BadCredentialsException exception,
+            HttpServletRequest request
+    ) {
         return buildResponse(
-                errorCode,
-                errorCode.getDefaultMessage(),
+                ErrorCode.INVALID_CREDENTIALS,
+                ErrorCode.INVALID_CREDENTIALS.getDefaultMessage(),
                 request,
-                fieldErrors
+                null
+        );
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                ErrorCode.FORBIDDEN,
+                ErrorCode.FORBIDDEN.getDefaultMessage(),
+                request,
+                null
+        );
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    ResponseEntity<ErrorResponse> handleInvalidRefreshToken(
+            InvalidRefreshTokenException exception,
+            HttpServletRequest request
+    ) {
+        return buildResponse(
+                ErrorCode.INVALID_REFRESH_TOKEN,
+                ErrorCode.INVALID_REFRESH_TOKEN.getDefaultMessage(),
+                request,
+                null
         );
     }
 
