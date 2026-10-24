@@ -1,0 +1,22 @@
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+
+  docker:
+    compose:
+      enabled: true
+      lifecycle-management: start-only
+
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    issuer: backend-typ-api
+    audience: backend-typ-client
+    access-token-ttl: 15m
+    secret: "JQ7/Nri+12/9AhoPcGjpdjMAwEJtAR0B7Lxl5BL3fl4="
+    refresh-token-ttl: 7d
