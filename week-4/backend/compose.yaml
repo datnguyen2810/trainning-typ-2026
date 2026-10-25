@@ -12,6 +12,39 @@ services:
       - "5432:5432"
     volumes:
       - backend-typ-postgres-data:/var/lib/postgresql/data
+  
+  rabbitmq:
+    image: rabbitmq:4.4.0-management
+    hostname: training-typ-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: training
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-training-local-password}
+      RABBITMQ_DEFAULT_VHOST: /training
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - backend-typ-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    labels:
+      org.springframework.boot.ignore: "true"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    labels:
+      org.springframework.boot.ignore: "true"
+
+
 
 volumes:
   backend-typ-postgres-data:
+  backend-typ-rabbitmq-data:
+

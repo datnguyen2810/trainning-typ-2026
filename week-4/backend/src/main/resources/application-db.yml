@@ -13,6 +13,31 @@ spring:
   flyway:
     enabled: true
 
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: training
+    password: ${RABBITMQ_PASSWORD:training-local-password}
+    virtual-host: /training
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 1
+
+  mail:
+    host: localhost
+    port: 1025
+    properties:
+      "[mail.smtp.auth]": false
+      "[mail.smtp.starttls.enable]": false
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
+
 app:
   jwt:
     issuer: backend-typ-api
@@ -20,3 +45,6 @@ app:
     access-token-ttl: 15m
     secret: "JQ7/Nri+12/9AhoPcGjpdjMAwEJtAR0B7Lxl5BL3fl4="
     refresh-token-ttl: 7d
+
+  messaging:
+    welcome-consumer-enabled: true

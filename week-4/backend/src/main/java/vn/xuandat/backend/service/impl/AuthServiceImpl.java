@@ -1,6 +1,7 @@
 package vn.xuandat.backend.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +20,7 @@ import vn.xuandat.backend.enums.UserStatus;
 import vn.xuandat.backend.exception.ConflictException;
 import vn.xuandat.backend.exception.ErrorCode;
 import vn.xuandat.backend.mapper.UserMapper;
+import vn.xuandat.backend.messaging.event.UserRegisteredEvent;
 import vn.xuandat.backend.repository.RoleRepository;
 import vn.xuandat.backend.repository.UserRepository;
 import vn.xuandat.backend.security.JwtProperties;
@@ -26,6 +28,7 @@ import vn.xuandat.backend.security.JwtService;
 import vn.xuandat.backend.service.AuthService;
 import vn.xuandat.backend.service.RefreshTokenService;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -39,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final RefreshTokenService refreshTokenService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     @Transactional
@@ -79,7 +83,17 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             userRepository.saveAndFlush(user);
-            return userMapper.toUserResponse(user);
+            UserResponse response = userMapper.toUserResponse(user);
+
+            applicationEventPublisher.publishEvent(new UserRegisteredEvent(
+                    UUID.randomUUID(),
+                    user.getId(),
+                    user.getEmail(),
+                    user.getFullName(),
+                    Instant.now()
+            ));
+
+            return response;
         } catch (DataIntegrityViolationException exception) {
             if (exception.getMostSpecificCause() instanceof java.sql.SQLException sql
                     && "23505".equals(sql.getSQLState())) {
