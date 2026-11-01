@@ -47,4 +47,4 @@ app:
     refresh-token-ttl: 7d
 
   messaging:
-    welcome-consumer-enabled: true
+    welcome-consumer-enabled: false

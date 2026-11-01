@@ -1,6 +1,8 @@
 package vn.xuandat.backend.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +63,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @CacheEvict(cacheNames = "category", key = "#p0") // xóa cache khi sửa category
     @Transactional
     public CategoryResponse updateCategory(UUID id, UpdateCategoryRequest request) {
         Category category = categoryRepository.findById(id)
@@ -99,6 +102,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @CacheEvict(cacheNames = "category", key = "#p0") // xóa cache khi xóa category
     @Transactional
     public void deleteCategory(UUID id) {
         categoryRepository.deactiveById(id, Instant.now());
@@ -129,6 +133,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @Cacheable(cacheNames = "category", key = "#p0") // #p0 là tham số đầu tiên: id || Khi hit, spring trả kq từ cache và bỏ qua phương thức. Khi miss, phương thức chạy và kq được cache
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(UUID id) {
         Category category = categoryRepository.findByIdAndActiveTrue(id)
