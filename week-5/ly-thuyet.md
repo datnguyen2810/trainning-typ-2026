@@ -1,9 +1,4 @@
 # Báo cáo tuần 5: Caching & Redis
-
-Báo cáo trình bày phần 1–5 theo [README tuần 5](README.md): kiến thức về caching, chiến lược caching, Redis cơ bản, tích hợp Redis vào project và các vấn đề thường gặp. Phần lý thuyết sử dụng ví dụ quản lý sản phẩm; phần triển khai áp dụng cho danh mục sản phẩm (Category) có sẵn trong project Spring Boot, với PostgreSQL là nguồn dữ liệu chính và Redis là lớp cache.
-
-Các kết quả chú thích trong ví dụ lệnh CLI là **kết quả mong đợi để thực hành**. Phần 4 trình bày bản triển khai, ảnh chụp thực tế và số liệu thời gian phản hồi; liên kết video demo được lưu tại [demo/linkdemo.md](demo/linkdemo.md).
-
 ## 1. Tìm hiểu Caching
 
 ### 1.1. Caching là gì?
